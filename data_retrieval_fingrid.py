@@ -8,7 +8,7 @@ Why ENTSO-E for spot prices?
   Fingrid's FAQ explicitly states they cannot publish hourly spot prices as
   the data is not owned by them. Dataset 245 on Fingrid is the wind power
   generation FORECAST in MW (15-min resolution), not €/MWh prices — using
-  it as a price produced fictional revenues of €57 M vs a realistic ~€1-3 M.
+  it as a price produced fictional revenues of €57 M vs a realistic ~€1–3 M.
 
 Setup (one-time):
   1. Register at https://transparency.entsoe.eu
@@ -19,11 +19,11 @@ Setup (one-time):
   5. pip install entsoe-py  (or add to requirements.txt)
 
 Finnish day-ahead spot prices (FI bidding zone) for 2025:
-  Typical range: -10 to ~300 €/MWh on normal days; spikes to ~1,000 €/MWh
-  during extreme cold-snap events. Median typically €30-80 €/MWh.
+  Typical range: −10 to ~300 €/MWh on normal days; spikes to ~1,000 €/MWh
+  during extreme cold-snap events. Median typically €30–80 €/MWh.
   If you see a median of >500, you are using the wrong data source.
 
-Physical model: 30 MW / 36 MWh BESS (Paistinkulma, Lempäälä, Finland)
+Physical model: 30 MW / 36 MWh BESS  (Finland)
 """
 
 import os
@@ -375,7 +375,7 @@ def cleanup_outputs():
 def main():
     print(f"{'='*60}")
     print(f"  BESS REVENUE PIPELINE  —  DB: {DB_TYPE.upper()}")
-    print(f"  Battery: {BESS_MW} MW / {BESS_MWH} MWh  (Paistinkulma, FI)")
+    print(f"  Battery: {BESS_MW} MW / {BESS_MWH} MWh  (Finland)")
     print(f"{'='*60}\n")
 
     START = "2025-01-01T00:00:00Z"

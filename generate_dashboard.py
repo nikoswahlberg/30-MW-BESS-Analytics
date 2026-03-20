@@ -32,21 +32,32 @@ DASHBOARD_FILE = "BESS_Dashboard.xlsx"
 # ---------------------------------------------------------------------------
 # Colour palette
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Brand colour palette
+# Primary: deep forest green / Secondary: warm gold / Neutral: off-white
+# Approximated from public investor materials (annual report, presentations)
+# ---------------------------------------------------------------------------
 C = {
-    "navy":        "1F4E79",
-    "mid_blue":    "2E75B6",
-    "light_blue":  "D6E4F0",
-    "green":       "375623",
-    "light_green": "E2EFDA",
-    "amber":       "7F6000",
-    "light_amber": "FFF2CC",
-    "red":         "842019",
-    "light_red":   "FCE4D6",
+    # Primary greens
+    "navy":        "1A3A24",   # deep forest green  — headers, section bars
+    "mid_blue":    "2D6840",   # medium green       — column headers, accents
+    "light_blue":  "D4E8D0",   # light green tint   — alternating table rows
+    # Semantic greens (positive values, totals)
+    "green":       "1A3A24",   # matches primary for consistency
+    "light_green": "D4E8D0",   # matches light tint
+    # Warm gold accent — KPI cards, highlights
+    "amber":       "8A6820",   # dark gold          — amber text on light bg
+    "light_amber": "F5E8C8",   # pale gold           — amber fill rows
+    # Semantic reds (negative values, warnings) — keep functional
+    "red":         "7A2020",
+    "light_red":   "F5D5D0",
+    # Neutrals
     "white":       "FFFFFF",
-    "light_grey":  "F5F5F5",
-    "mid_grey":    "D9D9D9",
-    "dark_grey":   "595959",
-    "teal":        "2E8B57",
+    "light_grey":  "F5F2EB",   # off-white/cream — data row alt
+    "mid_grey":    "E0DDD5",   # warm mid-grey
+    "dark_grey":   "3C3C3C",   # near-black body text
+    # KPI card accent (replaces teal)
+    "teal":        "2D6840",   # medium green — matches mid_blue
 }
 
 # ---------------------------------------------------------------------------
@@ -151,6 +162,36 @@ def build_cf(rev_y1, capex=CAPEX, opex=180_000, opex_var=0.005,
         r["cumfcf"] = cum - capex
     return rows
 
+
+# ---------------------------------------------------------------------------
+# Number formatting helpers — space as thousand separator
+# Excel cannot use a literal space in format strings, so we pre-format
+# numbers as strings in Python and write strings to cells.
+# ---------------------------------------------------------------------------
+def fmt_int(v):
+    """Integer with space thousand separator: 4617 → '4 617'"""
+    return f"{int(v):,}".replace(",", " ")
+
+def fmt_eur(v, decimals=0):
+    """Euro with space separator: 2347000 → '€ 2 347 000'"""
+    if decimals:
+        s = f"{abs(v):,.{decimals}f}".replace(",", " ")
+        sign = "-" if v < 0 else "+"
+        return f"{sign}€ {s}" if decimals and v != 0 else f"€ {s}"
+    s = f"{abs(v):,.0f}".replace(",", " ")
+    return f"-€ {s}" if v < 0 else f"€ {s}"
+
+def fmt_eur_m(v, decimals=2, signed=False):
+    """Millions with space separator: 2.347 → '€ 2.35 M'"""
+    s = f"{abs(v):.{decimals}f}"
+    if signed:
+        sign = "+" if v >= 0 else "-"
+        return f"{sign}€ {s} M"
+    return f"-€ {s} M" if v < 0 else f"€ {s} M"
+
+def fmt_pct(v):
+    """Percentage: 0.527 → '52.7%'"""
+    return f"{v:.0%}"
 
 # ---------------------------------------------------------------------------
 # Style helpers
@@ -293,13 +334,13 @@ def build_dashboard(df_p, df_s):
     ws.row_dimensions[1].height = 5
 
     merge_cell(ws, "B2:P3",
-               "PAISTINKULMA BESS  —  PERFORMANCE & INVESTMENT SUMMARY",
+               "BESS  —  PERFORMANCE & INVESTMENT SUMMARY",
                bg=C["navy"], fg=C["white"], bold=True, size=16, h="center")
     ws.row_dimensions[2].height = 28
     ws.row_dimensions[3].height = 28
 
     merge_cell(ws, "B4:P4",
-               "30 MW / 36 MWh Battery Energy Storage  ·  Lempäälä, Finland  ·  "
+               "30 MW / 36 MWh Battery Energy Storage  ·  Finland  ·  "
                "Analysis period: Full Year 2025  ·  "
                "Data: ENTSO-E (spot prices) + Fingrid Open Data (reserve markets)",
                bg=C["mid_blue"], fg=C["white"], bold=False, size=9,
@@ -385,16 +426,16 @@ def build_dashboard(df_p, df_s):
         er = data_start + r_off
         ws.row_dimensions[er].height = 19
         bg = MKT_BG.get(mkt, C["light_grey"])
+        avg_hr = row_d["Revenue"] / row_d["Hours"] if row_d["Hours"] else 0
         vals = [
             FRIENDLY.get(mkt, mkt),
-            int(row_d["Hours"]),
-            row_d["Pct_Hrs"],
-            row_d["Revenue"],
-            row_d["Pct_Rev"],
-            row_d["Revenue"] / row_d["Hours"] if row_d["Hours"] else 0,
+            fmt_int(row_d["Hours"]),
+            fmt_pct(row_d["Pct_Hrs"]),
+            fmt_eur(row_d["Revenue"]),
+            fmt_pct(row_d["Pct_Rev"]),
+            fmt_eur(avg_hr),
         ]
-        fmts = [None, "#,##0", "0%", "€#,##0", "0%", "€#,##0"]
-        for col_l, v, fmt_ in zip(MKT_COLS, vals, fmts):
+        for col_l, v in zip(MKT_COLS, vals):
             c = ws[f"{col_l}{er}"]
             c.value = v
             c.fill  = fill(bg)
@@ -402,17 +443,17 @@ def build_dashboard(df_p, df_s):
                            color=C["navy"] if col_l == "B" else "000000")
             c.alignment = align(h="left" if col_l == "B" else "center")
             c.border = border_thin()
-            if fmt_:
-                c.number_format = fmt_
 
     tot_r = data_start + len(mkt_grp)
     ws.row_dimensions[tot_r].height = 19
     tot_rev = float(mkt_grp["Revenue"].sum())
     tot_hrs = int(mkt_grp["Hours"].sum())
-    for col_l, v, fmt_ in zip(
+    for col_l, v in zip(
         MKT_COLS,
-        ["TOTAL", tot_hrs, 1.0, tot_rev, 1.0, tot_rev / tot_hrs],
-        [None, "#,##0", "0%", "€#,##0", "0%", "€#,##0"]
+        ["TOTAL",
+         fmt_int(tot_hrs), "100%",
+         fmt_eur(tot_rev), "100%",
+         fmt_eur(tot_rev / tot_hrs)]
     ):
         c = ws[f"{col_l}{tot_r}"]
         c.value = v
@@ -420,8 +461,6 @@ def build_dashboard(df_p, df_s):
         c.font  = font(bold=True, color=C["white"], size=9)
         c.alignment = align(h="left" if col_l == "B" else "center")
         c.border = border_thin()
-        if fmt_:
-            c.number_format = fmt_
 
     # Monthly revenue table headers
     MO_COLS  = ["J", "K", "L", "M", "N"]
@@ -448,31 +487,37 @@ def build_dashboard(df_p, df_s):
         vs_spot = mo_val - spot_v
         vs_fcr  = mo_val - fcr_v
 
-        row_data = [month.strftime("%B"), mo_val, vs_spot, vs_fcr, dom_nm]
-        fmts_    = [None, "0.00", "+0.00;-0.00", "+0.00;-0.00", None]
-        for col_l, v, fmt_ in zip(MO_COLS, row_data, fmts_):
+        row_data = [
+            month.strftime("%B"),
+            fmt_eur_m(mo_val),
+            fmt_eur_m(vs_spot, signed=True),
+            fmt_eur_m(vs_fcr,  signed=True),
+            dom_nm,
+        ]
+        for col_l, v in zip(MO_COLS, row_data):
             c = ws[f"{col_l}{er}"]
             c.value = v
             c.fill  = fill(bg)
+            is_pos = isinstance(v, str) and v.startswith("+")
+            is_neg = isinstance(v, str) and v.startswith("-")
             c.font  = font(
                 size=9, bold=(col_l == "J"),
                 color=C["navy"]  if col_l == "J"
-                      else C["green"] if isinstance(v, float) and v > 0 and col_l in ("L","M")
-                      else C["red"]   if isinstance(v, float) and v < 0 and col_l in ("L","M")
+                      else C["green"] if is_pos and col_l in ("L","M")
+                      else C["red"]   if is_neg and col_l in ("L","M")
                       else "000000")
             c.alignment = align(h="left" if col_l in ("J","N") else "center")
             c.border = border_thin()
-            if fmt_:
-                c.number_format = fmt_
 
     mo_tot_r = data_start + len(monthly_soc)
     ws.row_dimensions[mo_tot_r].height = 19
-    for col_l, v, fmt_ in zip(
+    for col_l, v in zip(
         MO_COLS,
-        ["FULL YEAR", monthly_soc.sum(),
-         monthly_soc.sum() - monthly_spot.sum(),
-         monthly_soc.sum() - monthly_fcr.sum(), ""],
-        [None, "0.00", "+0.00;-0.00", "+0.00;-0.00", None]
+        ["FULL YEAR",
+         fmt_eur_m(monthly_soc.sum()),
+         fmt_eur_m(monthly_soc.sum() - monthly_spot.sum(), signed=True),
+         fmt_eur_m(monthly_soc.sum() - monthly_fcr.sum(),  signed=True),
+         ""]
     ):
         c = ws[f"{col_l}{mo_tot_r}"]
         c.value = v
@@ -480,8 +525,6 @@ def build_dashboard(df_p, df_s):
         c.font  = font(bold=True, color=C["white"], size=9)
         c.alignment = align(h="left" if col_l == "J" else "center")
         c.border = border_thin()
-        if fmt_:
-            c.number_format = fmt_
 
     # ── SECTION C: ASSUMPTIONS + 20-YEAR CASH FLOW ───────────────────────────
     sec3_start = max(tot_r, mo_tot_r) + 4
@@ -494,12 +537,13 @@ def build_dashboard(df_p, df_s):
                    "  20-YEAR FREE CASH FLOW  (€ Millions, Operational Estimate)",
                    row_height=20)
 
-    # Assumption sub-headers
+    # Assumption column headers — same 6-column structure as monthly revenue table
+    # Columns: B=Parameter  C=Value  D=empty  E=Note (spans E-G)  F,G=continuation
+    ASMP_COLS = ["B", "C", "D", "E", "F", "G"]
+    asmp_hdr_labels = ["Parameter", "Value", "Note", "", "", ""]
     asmp_hdr = sec3_start + 1
     ws.row_dimensions[asmp_hdr].height = 17
-    for col_l, hdr, end_l in zip(["B","E","G"], ["Parameter","Value","Note"],
-                                  ["D","F","H"]):
-        ws.merge_cells(f"{col_l}{asmp_hdr}:{end_l}{asmp_hdr}")
+    for col_l, hdr in zip(ASMP_COLS, asmp_hdr_labels):
         c = ws[f"{col_l}{asmp_hdr}"]
         c.value = hdr
         c.fill  = fill(C["mid_blue"])
@@ -508,30 +552,35 @@ def build_dashboard(df_p, df_s):
         c.border = border_thin()
 
     assumptions = [
-        ("CAPEX",              f"€{CAPEX/1e6:.0f} M",     "€400/kW total installed cost"),
-        ("OPEX (fixed)",       "€180,000 / yr",            "1.5% of CAPEX annually"),
-        ("Revenue Y1",         f"€{rev_ops/1e6:.2f} M",   "Operational estimate (−20% haircut)"),
-        ("Revenue growth",     "3.0% p.a.",                "Reserve demand +134% forecast (5 yr)"),
-        ("Degradation",        "2.0% p.a.",                "LFP cell capacity loss"),
-        ("Cell replacement",   "€3.5 M at year 12",        "Cells only; inverters retained"),
-        ("Discount rate",      "8.0% WACC",                "Infrastructure equity target"),
-        ("Corporation tax",    "20%",                       "Finland"),
-        ("Depreciation",       "10 yr straight-line",      "Initial CAPEX basis"),
-        ("Project life",       "20 years",                 ""),
+        ("CAPEX",              "€12 M",                    "€400/kW total installed cost",             "", "", ""),
+        ("OPEX (fixed)",       "€180,000 / yr",            "1.5% of CAPEX annually",                   "", "", ""),
+        ("Revenue Y1",         f"€{rev_ops/1e6:.2f} M",   "Operational estimate (−20% haircut)",      "", "", ""),
+        ("Revenue growth",     "3.0% p.a.",                "Reserve demand +134% forecast (5 yr)",     "", "", ""),
+        ("Degradation",        "2.0% p.a.",                "LFP cell capacity loss",                   "", "", ""),
+        ("Cell replacement",   "€3.5 M at yr 12",         "Cells only; inverters retained",           "", "", ""),
+        ("Discount rate",      "8.0% WACC",                "Infrastructure equity target",             "", "", ""),
+        ("Corporation tax",    "20%",                      "Finland",                                  "", "", ""),
+        ("Depreciation",       "10 yr straight-line",      "Initial CAPEX basis",                      "", "", ""),
+        ("Project life",       "20 years",                 "",                                         "", "", ""),
     ]
 
-    for r_off, (param, val, note) in enumerate(assumptions):
+    for r_off, row_vals in enumerate(assumptions):
         er = asmp_hdr + 1 + r_off
-        ws.row_dimensions[er].height = 18
-        bg = C["light_grey"] if r_off % 2 == 0 else C["white"]
-        for col_l, v, end_l in zip(["B","E","G"], [param, val, note],
-                                    ["D","F","H"]):
-            ws.merge_cells(f"{col_l}{er}:{end_l}{er}")
+        ws.row_dimensions[er].height = 19   # match monthly revenue row height
+        bg = C["light_blue"] if r_off % 2 == 0 else C["light_grey"]  # match monthly alternating
+        for col_l, v in zip(ASMP_COLS, row_vals):
             c = ws[f"{col_l}{er}"]
             c.value = v
             c.fill  = fill(bg)
-            c.font  = font(size=9, bold=(col_l == "B"))
-            c.alignment = align(h="left", v="center")
+            c.font  = font(
+                size=9,
+                bold=(col_l == "B"),
+                color=C["navy"] if col_l == "B" else "000000"
+            )
+            c.alignment = align(
+                h="left" if col_l in ("B", "D") else "center",
+                v="center"
+            )
             c.border = border_thin()
 
     # CF sub-headers
@@ -556,23 +605,25 @@ def build_dashboard(df_p, df_s):
               else C["light_grey"]  if r_off % 2 == 0
               else C["white"])
         status = "Cell replacement" if is_repl else ("Payback period" if cumfcf < 0 else "✓")
-        vals   = [row_d["yr"], row_d["rev"]/1e6, row_d["fcf"]/1e6, cumfcf/1e6, status]
-        fmts_  = ["0", "€0.00", "€0.00", "€0.00", None]
-        for col_l, v, fmt_ in zip(["J","K","L","M","N"], vals, fmts_):
+        rev_s  = fmt_eur_m(row_d["rev"]/1e6)
+        fcf_s  = fmt_eur_m(row_d["fcf"]/1e6, signed=True)
+        cum_s  = fmt_eur_m(cumfcf/1e6, signed=True)
+        vals   = [str(row_d["yr"]), rev_s, fcf_s, cum_s, status]
+        for col_l, v in zip(["J","K","L","M","N"], vals):
             c = ws[f"{col_l}{er}"]
             c.value = v
             c.fill  = fill(bg)
+            is_neg_v = isinstance(v, str) and v.startswith("-")
+            is_pos_v = isinstance(v, str) and v.startswith("+")
             c.font  = font(
                 size=9,
-                color=C["red"]   if isinstance(v, float) and v < 0 and col_l in ("L","M")
-                      else C["green"] if isinstance(v, float) and v > 0 and col_l == "M"
+                color=C["red"]   if is_neg_v and col_l in ("L","M")
+                      else C["green"] if is_pos_v and col_l == "M"
                       else C["amber"] if is_repl and col_l == "N"
                       else C["green"] if status == "✓" and col_l == "N"
                       else "000000")
             c.alignment = align(h="left" if col_l == "N" else "center")
             c.border = border_thin()
-            if fmt_:
-                c.number_format = fmt_
 
     # ── FOOTER ────────────────────────────────────────────────────────────────
     last_cf   = cf_hdr + 20

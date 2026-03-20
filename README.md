@@ -1,7 +1,7 @@
-# BESS — Revenue & Investment Analysis
+# BESS Revenue & Investment Analysis
 
-A complete data pipeline modelling the **30 MW / 36 MWh** Paistinkulma battery
-energy storage system (Lempäälä, Finland).
+A complete data pipeline modelling a **30 MW / 36 MWh** battery energy
+storage system operating in the Finnish reserve markets.
 
 The pipeline fetches real market prices, runs a physically constrained
 State-of-Charge simulation across all relevant Finnish reserve markets, and
@@ -12,7 +12,7 @@ produces an investment model with IRR, NPV, and scenario analysis.
 ## Project Structure
 
 ```
-file/
+bess_project/
 │
 ├── data_retrieval_fingrid.py   # Step 1 — fetch prices, run SoC simulation, store to DB
 ├── data_analytics.py           # Step 2 — charts + 5-sheet investment Excel workbook
@@ -219,10 +219,9 @@ One-sheet overview intended for stakeholders who will not read the terminal outp
 
 ## Background
 
-Paistinkulma is a 30 MW / 36 MWh battery energy storage system located in
-Lempäälä, Finland, fully operational since Q4 2024. It was delivered on a
-turnkey basis by Merus Power. It participates in Fingrid's reserve markets
-and supports the integration of renewable energy into the Finnish grid.
-The project is classified as EU Taxonomy-aligned (EU/2020/852).
+The modelled asset is a 30 MW / 36 MWh battery energy storage system
+in Finland, fully operational since Q4 2024. It participates in Fingrid's
+reserve markets and supports the integration of renewable energy into the
+Finnish grid. The project is classified as EU Taxonomy-aligned (EU/2020/852).
 
 The EU supports this activity through the InvestEU fund.

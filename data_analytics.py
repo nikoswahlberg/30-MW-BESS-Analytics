@@ -440,7 +440,7 @@ def write_investment_sheet(wb, annual_revenue_y1: float):
     payback     = payback_years(cfs)
 
     # ── Title ──
-    ws["A1"] = "PAISTINKULMA BESS — INVESTMENT MODEL (30 MW / 36 MWh)"
+    ws["A1"] = "BESS — INVESTMENT MODEL (30 MW / 36 MWh)"
     ws["A1"].font = Font(bold=True, size=14, color="1F4E79")
     ws.merge_cells("A1:F1")
     ws["A2"] = (
@@ -577,7 +577,7 @@ def write_investment_sheet(wb, annual_revenue_y1: float):
 def write_scenarios_sheet(wb, annual_revenue_y1: float):
     ws = wb.create_sheet("Scenarios")
     ws.sheet_view.showGridLines = False
-    ws["A1"] = "SCENARIO ANALYSIS — 30 MW BESS PAISTINKULMA"
+    ws["A1"] = "SCENARIO ANALYSIS — 30 MW BESS"
     ws["A1"].font = Font(bold=True, size=14, color="1F4E79")
     ws.merge_cells("A1:G1")
 
@@ -655,7 +655,7 @@ def write_scenarios_sheet(wb, annual_revenue_y1: float):
         f"  Finnish corp tax {INV['corp_tax']*100:.0f}% | Straight-line depreciation {INV['depr_years']} yrs",
         f"  IRR benchmark: 3–7% unlevered Western EU merchant BESS (Capstone DC, Nov 2025); Finland structurally higher due to price volatility",
         f"  Exilion FI benchmark: €40,700/MW/month in H2 2023 (Capalo AI, Oct 2024)",
-        f"  Capacity doubling to 60 MW flagged as future option by Taaleri Energia — doubling MW at same site halves €/kW BOS cost",
+        "  Capacity doubling to 60 MW is a potential future expansion — same-site doubling significantly reduces €/kW BOS cost",
         "  ── Model limitations (revenue upper bound) ──",
         "  mFRR UP/DOWN are energy activation markets: Fingrid decides when to dispatch, not the operator.",
         "  Revenue is scaled by activation probability (12% UP / 6% DOWN) calibrated to Fingrid balancing statistics.",
