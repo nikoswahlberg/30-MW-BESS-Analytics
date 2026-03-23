@@ -314,28 +314,32 @@ def chart_cumulative(df_prices, df_sim):
 def chart_trend(df_prices, df_sim):
     print("   Creating: BESS_Strategy_Trend_2025.png")
     df_m = df_prices[["Revenue_Spot_EUR", "Revenue_FCR_EUR"]].copy() / 1_000_000
-    # min_periods=1 ensures curve starts Jan 1, not Jan 8
-    spot_smooth = df_m["Revenue_Spot_EUR"].rolling(
-        window=24 * 7, min_periods=1).mean()
+
+    WINDOW = 24 * 7   # 168 hours = 7 days
+    # All three series use the same 7-day rolling average so they are
+    # directly comparable — min_periods=1 ensures the curve starts Jan 1
+    fcr_smooth  = df_m["Revenue_FCR_EUR"].rolling(window=WINDOW, min_periods=1).mean()
+    spot_smooth = df_m["Revenue_Spot_EUR"].rolling(window=WINDOW, min_periods=1).mean()
 
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(df_m.index, df_m["Revenue_FCR_EUR"],
-            color="#D2691E", alpha=0.4,
-            label="FCR-D Reserve — Stable Capacity Fee (Raw Hourly)")
+
+    ax.plot(fcr_smooth.index, fcr_smooth,
+            color="#D2691E", linewidth=2,
+            label="FCR-D Reserve — Stable Capacity Fee (7-Day Avg)")
     ax.plot(spot_smooth.index, spot_smooth,
             color="#4682B4", linewidth=2,
-            label="Spot Arbitrage — Price-Driven Trading (7-Day Rolling Average)")
+            label="Spot Arbitrage — Price-Driven Trading (7-Day Avg)")
 
     if not df_sim.empty and "Revenue_EUR" in df_sim.columns:
         soc_smooth = (df_sim["Revenue_EUR"].clip(lower=0) / 1_000_000
-                      ).rolling(window=24 * 7, min_periods=1).mean()
+                      ).rolling(window=WINDOW, min_periods=1).mean()
         ax.plot(soc_smooth.index, soc_smooth,
                 color="#2E8B57", linewidth=2, linestyle="--",
-                label="SoC-Optimised Strategy (7-Day Rolling Average)")
+                label="SoC-Optimised Strategy (7-Day Avg)")
 
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(fmt_thousands))
-    ax.set_ylabel("Revenue per Hour", fontweight="bold", labelpad=12)
-    ax.set_title("Performance Trend: Trading Volatility vs. Capacity Stability",
+    ax.set_ylabel("7-Day Average Revenue per Hour", fontweight="bold", labelpad=12)
+    ax.set_title("Performance Trend: 7-Day Rolling Average Revenue — All Strategies",
                  fontsize=15, fontweight="bold", pad=20)
     ax.legend()
     plt.tight_layout()
@@ -798,10 +802,25 @@ def run_analytics():
 
     print("   Building Investment Model sheet...")
     base_irr, base_npv, base_payback = write_investment_sheet(wb, revenue_y1)
-    irr_display = f"{base_irr:.2%}" if not math.isnan(base_irr) else "N/A"
-    npv_display = f"€{base_npv:,.0f}"
-    pay_display = f"{base_payback:.1f} yrs" if base_payback != float("inf") else "N/A"
-    print(f"   → IRR: {irr_display}  |  NPV: {npv_display}  |  Payback: {pay_display}")
+
+    # Operational estimate (−20% haircut) — computed inline to match dashboard
+    _rev_ops = revenue_y1 * 0.80
+    _p       = INV.copy()
+    _cfs_ops = [-_p["capex_eur"]] + build_cashflows(_rev_ops, _p)["Free_Cashflow"].tolist()
+    _irr_ops = xirr(_cfs_ops)
+    _npv_ops = npv(_p["wacc"], _cfs_ops)
+    _pay_ops = payback_years(_cfs_ops)
+
+    irr_m = f"{base_irr:.2%}" if not math.isnan(base_irr) else "N/A"
+    npv_m = f"€{base_npv:,.0f}"
+    pay_m = f"{base_payback:.1f} yrs" if base_payback != float("inf") else "N/A"
+    irr_o = f"{_irr_ops:.2%}" if not math.isnan(_irr_ops) else "N/A"
+    npv_o = f"€{_npv_ops:,.0f}"
+    pay_o = f"{_pay_ops:.1f} yrs" if _pay_ops != float("inf") else "N/A"
+
+    print(f"   → Model max  (perfect foresight):  IRR {irr_m}  |  NPV {npv_m}  |  Payback {pay_m}")
+    print(f"   → Ops est.   (−20% haircut):       IRR {irr_o}  |  NPV {npv_o}  |  Payback {pay_o}")
+    print(f"      ↑ Dashboard and Investment Model sheet show the operational estimate")
 
     print("   Building Scenarios sheet...")
     write_scenarios_sheet(wb, revenue_y1)
